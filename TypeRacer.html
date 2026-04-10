@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Type Racer — Typing Speed Test</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0f1117; font-family: monospace; color: #e2e8f0; display: flex; flex-direction: column; align-items: center; padding: 2rem 1rem; min-height: 100vh; }
+  h1 { font-size: 22px; font-weight: 500; color: #a78bfa; letter-spacing: 2px; margin-bottom: 0.25rem; font-family: sans-serif; }
+  .subtitle { font-size: 13px; color: #64748b; margin-bottom: 2rem; font-family: sans-serif; }
+  .stats-bar { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; width: 100%; max-width: 700px; margin-bottom: 2rem; }
+  .stat-card { background: #1a1d27; border: 0.5px solid #2d3148; border-radius: 10px; padding: 0.85rem 1rem; text-align: center; }
+  .stat-label { font-size: 11px; color: #64748b; font-family: sans-serif; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+  .stat-value { font-size: 22px; font-weight: 500; color: #e2e8f0; }
+  .stat-value.highlight { color: #a78bfa; }
+  .stat-unit { font-size: 11px; color: #64748b; }
+  .timer-ring { position: relative; width: 70px; height: 70px; margin: 0 auto 1.5rem; }
+  .timer-ring svg { transform: rotate(-90deg); }
+  .timer-text { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 18px; font-weight: 500; color: #a78bfa; }
+  .word-display { background: #1a1d27; border: 0.5px solid #2d3148; border-radius: 12px; padding: 1.5rem; width: 100%; max-width: 700px; margin-bottom: 1.25rem; line-height: 2.2; font-size: 18px; min-height: 110px; display: flex; flex-wrap: wrap; gap: 6px; align-content: flex-start; user-select: none; }
+  .word { display: inline-flex; gap: 1px; }
+  .char { color: #4a5568; transition: color 0.05s; }
+  .char.correct { color: #34d399; }
+  .char.incorrect { color: #f87171; }
+  .char.current { color: #a78bfa; border-bottom: 2px solid #a78bfa; }
+  #input-box { width: 100%; max-width: 700px; background: #1a1d27; border: 1.5px solid #2d3148; border-radius: 10px; padding: 0.85rem 1.25rem; font-size: 16px; color: #e2e8f0; outline: none; font-family: monospace; transition: border-color 0.2s; margin-bottom: 1.25rem; }
+  #input-box:focus { border-color: #7c3aed; }
+  #input-box:disabled { opacity: 0.4; cursor: not-allowed; }
+  .controls { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; justify-content: center; margin-bottom: 0.5rem; }
+  .btn { background: transparent; border: 0.5px solid #4a5568; border-radius: 8px; padding: 0.5rem 1.25rem; color: #94a3b8; font-size: 14px; cursor: pointer; font-family: sans-serif; transition: all 0.15s; }
+  .btn:hover { border-color: #a78bfa; color: #a78bfa; }
+  .btn.active { border-color: #a78bfa; color: #a78bfa; background: #1e1b4b22; }
+  .btn-reset { background: #7c3aed22; border: 0.5px solid #7c3aed; border-radius: 8px; padding: 0.5rem 1.5rem; color: #a78bfa; font-size: 14px; cursor: pointer; font-family: sans-serif; transition: all 0.15s; }
+  .btn-reset:hover { background: #7c3aed44; }
+  .result-overlay { position: fixed; inset: 0; background: #0f111799; display: flex; align-items: center; justify-content: center; z-index: 10; }
+  .result-card { background: #1a1d27; border: 0.5px solid #2d3148; border-radius: 16px; padding: 2rem 2.5rem; text-align: center; min-width: 300px; }
+  .result-card h2 { font-size: 18px; font-weight: 500; color: #a78bfa; margin-bottom: 1.5rem; font-family: sans-serif; }
+  .result-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 1.5rem; }
+  .result-stat { background: #12141d; border-radius: 10px; padding: 1rem; }
+  .result-stat .val { font-size: 28px; font-weight: 500; color: #a78bfa; }
+  .result-stat .lbl { font-size: 12px; color: #64748b; font-family: sans-serif; }
+  .mode-label { font-size: 12px; color: #64748b; font-family: sans-serif; }
+</style>
+</head>
+<body>
+
+<h1>TYPE RACER</h1>
+<p class="subtitle">test your typing speed</p>
+
+<div class="stats-bar">
+  <div class="stat-card"><div class="stat-label">WPM</div><div class="stat-value highlight" id="live-wpm">0</div></div>
+  <div class="stat-card"><div class="stat-label">Accuracy</div><div class="stat-value" id="live-acc">0<span class="stat-unit">%</span></div></div>
+  <div class="stat-card"><div class="stat-label">Correct</div><div class="stat-value" id="live-correct">0</div></div>
+  <div class="stat-card"><div class="stat-label">Errors</div><div class="stat-value" id="live-errors">0</div></div>
+</div>
+
+<div class="timer-ring">
+  <svg width="70" height="70" viewBox="0 0 70 70">
+    <circle cx="35" cy="35" r="30" fill="none" stroke="#1a1d27" stroke-width="5"/>
+    <circle id="timer-arc" cx="35" cy="35" r="30" fill="none" stroke="#7c3aed" stroke-width="5"
+      stroke-dasharray="188.5" stroke-dashoffset="0" stroke-linecap="round"/>
+  </svg>
+  <div class="timer-text" id="timer-display">--</div>
+</div>
+
+<div class="word-display" id="word-display"></div>
+
+<input id="input-box" type="text" placeholder="click here and start typing..." autocomplete="off" autocorrect="off" spellcheck="false" />
+
+<div class="controls">
+  <span class="mode-label">duration:</span>
+  <button class="btn active" id="btn-15" onclick="setDuration(15)">15s</button>
+  <button class="btn" id="btn-30" onclick="setDuration(30)">30s</button>
+  <button class="btn" id="btn-60" onclick="setDuration(60)">60s</button>
+  <button class="btn-reset" onclick="resetTest()">&#x21bb; reset</button>
+</div>
+
+<div id="result-overlay" class="result-overlay" style="display:none;">
+  <div class="result-card">
+    <h2>results</h2>
+    <div class="result-grid">
+      <div class="result-stat"><div class="val" id="r-wpm">0</div><div class="lbl">WPM</div></div>
+      <div class="result-stat"><div class="val" id="r-acc">0%</div><div class="lbl">Accuracy</div></div>
+      <div class="result-stat"><div class="val" id="r-correct">0</div><div class="lbl">Correct chars</div></div>
+      <div class="result-stat"><div class="val" id="r-errors">0</div><div class="lbl">Errors</div></div>
+    </div>
+    <button class="btn-reset" onclick="resetTest()">try again</button>
+  </div>
+</div>
+
+<script>
+const WORDS = [
+  "the","and","for","are","but","not","you","all","can","her","was","one","our",
+  "out","day","get","has","him","his","how","man","new","now","old","see","two",
+  "way","who","boy","did","its","let","put","say","she","too","use","had","with",
+  "have","this","will","your","from","they","know","want","been","good","much",
+  "some","time","very","when","come","here","just","like","long","make","many",
+  "more","only","over","such","take","than","them","well","were","what","would",
+  "write","could","there","their","first","water","after","place","right","think",
+  "great","again","small","every","found","still","never","down","hand","high",
+  "keep","last","left","next","open","read","room","stop","turn","walk","went",
+  "also","back","call","came","each","feel","help","hold","home","hope","kind",
+  "land","life","live","look","made","move","must","name","need","part","play",
+  "real","same","seem","show","side","song","soon","tell","than","that","them",
+  "then","these","thing","think","those","three","through","today","under","until"
+];
+
+let duration = 15, timeLeft = 15, timerInterval = null;
+let started = false, finished = false;
+let words = [], wordIndex = 0, charIndex = 0;
+let totalKeypresses = 0, correctKeypresses = 0, errorKeypresses = 0;
+
+function shuffle(arr) {
+  let a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function generateWords() {
+  let pool = shuffle(WORDS);
+  while (pool.length < 80) pool = [...pool, ...shuffle(WORDS)];
+  return pool.slice(0, 80);
+}
+
+function renderWords() {
+  const display = document.getElementById('word-display');
+  display.innerHTML = '';
+  words.forEach((word, wi) => {
+    const wEl = document.createElement('span');
+    wEl.className = 'word';
+    wEl.id = 'w' + wi;
+    word.split('').forEach((ch, ci) => {
+      const cEl = document.createElement('span');
+      cEl.className = 'char' + (wi === 0 && ci === 0 ? ' current' : '');
+      cEl.id = `c${wi}-${ci}`;
+      cEl.textContent = ch;
+      wEl.appendChild(cEl);
+    });
+    display.appendChild(wEl);
+  });
+}
+
+function setDuration(d) {
+  duration = d;
+  ['15','30','60'].forEach(x => {
+    document.getElementById('btn-'+x).className = 'btn' + (d == x ? ' active' : '');
+  });
+  resetTest();
+}
+
+function resetTest() {
+  clearInterval(timerInterval);
+  started = false; finished = false;
+  timeLeft = duration; wordIndex = 0; charIndex = 0;
+  totalKeypresses = 0; correctKeypresses = 0; errorKeypresses = 0;
+  words = generateWords();
+  renderWords();
+  const inp = document.getElementById('input-box');
+  inp.value = ''; inp.disabled = false;
+  inp.placeholder = 'click here and start typing...';
+  document.getElementById('timer-display').textContent = duration;
+  document.getElementById('timer-arc').style.strokeDashoffset = '0';
+  setStats(0, 0, 0, 0);
+  document.getElementById('result-overlay').style.display = 'none';
+}
+
+function setStats(wpm, acc, correct, errors) {
+  document.getElementById('live-wpm').textContent = wpm;
+  document.getElementById('live-acc').innerHTML = acc + '<span class="stat-unit">%</span>';
+  document.getElementById('live-correct').textContent = correct;
+  document.getElementById('live-errors').textContent = errors;
+}
+
+function startTimer() {
+  started = true;
+  timerInterval = setInterval(() => {
+    timeLeft--;
+    document.getElementById('timer-display').textContent = timeLeft;
+    document.getElementById('timer-arc').style.strokeDashoffset = 188.5 * (1 - timeLeft / duration);
+    updateLiveStats();
+    if (timeLeft <= 0) { clearInterval(timerInterval); endTest(); }
+  }, 1000);
+}
+
+function updateLiveStats() {
+  if (totalKeypresses === 0) { setStats(0, 0, 0, 0); return; }
+  const elapsed = duration - timeLeft;
+  if (elapsed <= 0) { setStats(0, 0, 0, 0); return; }
+  const wpm = Math.round((correctKeypresses / 5) / (elapsed / 60));
+  const acc = Math.round((correctKeypresses / totalKeypresses) * 100);
+  setStats(wpm, acc, correctKeypresses, errorKeypresses);
+}
+
+function endTest() {
+  finished = true;
+  document.getElementById('input-box').disabled = true;
+  if (totalKeypresses === 0 || correctKeypresses === 0) {
+    document.getElementById('r-wpm').textContent = '0';
+    document.getElementById('r-acc').textContent = '0%';
+    document.getElementById('r-correct').textContent = '0';
+    document.getElementById('r-errors').textContent = errorKeypresses;
+    setStats(0, 0, 0, errorKeypresses);
+  } else {
+    const wpm = Math.round((correctKeypresses / 5) / (duration / 60));
+    const acc = Math.round((correctKeypresses / totalKeypresses) * 100);
+    document.getElementById('r-wpm').textContent = wpm;
+    document.getElementById('r-acc').textContent = acc + '%';
+    document.getElementById('r-correct').textContent = correctKeypresses;
+    document.getElementById('r-errors').textContent = errorKeypresses;
+    setStats(wpm, acc, correctKeypresses, errorKeypresses);
+  }
+  document.getElementById('result-overlay').style.display = 'flex';
+}
+
+function highlightCurrent() {
+  document.querySelectorAll('.char.current').forEach(e => e.classList.remove('current'));
+  if (wordIndex < words.length && charIndex < words[wordIndex].length) {
+    const el = document.getElementById(`c${wordIndex}-${charIndex}`);
+    if (el) el.classList.add('current');
+  }
+}
+
+document.getElementById('input-box').addEventListener('input', function() {
+  if (finished) return;
+  const val = this.value;
+  if (!started && val.length > 0) startTimer();
+  if (val === '') return;
+  const typed = val[val.length - 1];
+  this.value = '';
+  if (wordIndex >= words.length) return;
+  const word = words[wordIndex];
+  if (typed === ' ') {
+    if (charIndex === 0) return;
+    wordIndex++; charIndex = 0;
+    highlightCurrent();
+    document.getElementById('w' + wordIndex)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    updateLiveStats(); return;
+  }
+  totalKeypresses++;
+  const cEl = document.getElementById(`c${wordIndex}-${charIndex}`);
+  if (typed === word[charIndex]) {
+    correctKeypresses++;
+    if (cEl) { cEl.classList.remove('current'); cEl.classList.add('correct'); }
+  } else {
+    errorKeypresses++;
+    if (cEl) { cEl.classList.remove('current'); cEl.classList.add('incorrect'); }
+  }
+  charIndex++;
+  highlightCurrent();
+  updateLiveStats();
+});
+
+document.getElementById('input-box').addEventListener('keydown', function(e) {
+  if (e.key === 'Backspace') e.preventDefault();
+});
+
+resetTest();
+</script>
+</body>
+</html>
